@@ -1,5 +1,7 @@
+import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
 import org.junit.jupiter.api.MethodOrderer.Random
 import org.junit.jupiter.api.Test
@@ -10,62 +12,75 @@ import org.junit.jupiter.api.parallel.ExecutionMode
 @TestMethodOrder(Random::class)
 @Execution(ExecutionMode.CONCURRENT)
 class LockControllerShould {
-//    val dbConnection = object : IMassiveDbConnection {
-//        override var session: IMassiveSession
-//            get() = TODO("Not yet implemented")
-//            set(value) {}
-//
-//        override fun getPathTo(mObject: String): MassiveLocation {
-//            TODO("Not yet implemented")
-//        }
-//
-//        override fun fullObject(path: IMassiveLocation): IMassiveObject {
-//            TODO("Not yet implemented")
-//        }
-//
-//        override fun wangle(fullMObject: IMassiveObject): MassiveLocation {
-//            TODO("Not yet implemented")
-//        }
-//
-//        override fun callMassiveMethod(
-//            path: MassiveLocation,
-//            wangleLocation: MassiveLocation,
-//            inParameters: List<IMassiveVariant>,
-//            outParameters: MutableList<IMassiveVariant>,
-//            errors: MutableList<String>
-//        ): Int {
-//            TODO("Not yet implemented")
-//        }
-//    }
+
+    val dbConnection: IMassiveDbConnection = mockk()
+    val path = mockk<MassiveLocation>()
+    val mObjectId = "Id1"
+    val fullMObject = mockk<IMassiveObject>()
+    val wangleLocation = mockk<MassiveLocation>()
+    val subscription = mockk<Subscription>(relaxed = true)
 
     @Test
-    public fun `lock then unlock`() {
-
-        val dbConnection: IMassiveDbConnection = mockk()
-
-
-        // TODO: finish writing this test
-        val m = MassiveObject("Id1");
-
-        val path = mockk<MassiveLocation>()
-        every { dbConnection.getPathTo("Id1") }.returns(path)
-
-        val fullMObject = mockk<IMassiveObject>()
+    fun `lock successfully with these interactions`() {
+        every { dbConnection.getPathTo(mObjectId) }.returns(path)
         every { dbConnection.fullObject(path) }.returns(fullMObject)
-
-        val wangleLocation = mockk<MassiveLocation>()
         every { dbConnection.wangle(fullMObject) }.returns(wangleLocation)
-
         every { dbConnection.callMassiveMethod(path, wangleLocation, any(), any(), any()) }.returns(0)
 
-        val subscription = mockk<Subscription>(relaxed = true)
-        val controller = LockController(dbConnection, subscription);
+        LockController(dbConnection, subscription).lockObject(mObjectId)
 
-        controller.lockObject(m.id);
-        verify { dbConnection.getPathTo("Id1") }
+        verify { dbConnection.getPathTo(mObjectId) }
+        verify { dbConnection.fullObject(path) }
+        verify { dbConnection.callMassiveMethod(path, wangleLocation, any(), any(), any()) }
+        verify { dbConnection.wangle(fullMObject) }
+    }
 
-//        controller.unlockObject(m.id);
-//        controller.dispose();
-//        true shouldBe false
+    @Test
+    fun `unlock successfully with these interactions`() {
+        every { dbConnection.getPathTo(mObjectId) }.returns(path)
+        every { dbConnection.fullObject(path) }.returns(fullMObject)
+        every { dbConnection.wangle(fullMObject) }.returns(wangleLocation)
+        every { dbConnection.callMassiveMethod(path, wangleLocation, any(), any(), any()) }.returns(0)
+
+        LockController(dbConnection, subscription).unlockObject(mObjectId)
+
+        verify { dbConnection.getPathTo(mObjectId) }
+        verify { dbConnection.fullObject(path) }
+        verify { dbConnection.callMassiveMethod(path, wangleLocation, any(), any(), any()) }
+        verify { dbConnection.wangle(fullMObject) }
+    }
+
+    @Test
+    fun `return true on lockObject if status is 0 and errors is empty`() {
+        every { dbConnection.getPathTo(mObjectId) }.returns(path)
+        every { dbConnection.fullObject(path) }.returns(fullMObject)
+        every { dbConnection.wangle(fullMObject) }.returns(wangleLocation)
+        every { dbConnection.callMassiveMethod(path, wangleLocation, any(), any(), any()) }.returns(0)
+
+        LockController(dbConnection, subscription).lockObject(mObjectId) shouldBe true
+    }
+
+    @Test
+    fun `return false on lockObject if status is 2`() {
+        every { dbConnection.getPathTo(mObjectId) }.returns(path)
+        every { dbConnection.fullObject(path) }.returns(fullMObject)
+        every { dbConnection.wangle(fullMObject) }.returns(wangleLocation)
+        every { dbConnection.callMassiveMethod(path, wangleLocation, any(), any(), any()) }.returns(2)
+
+        LockController(dbConnection, subscription).lockObject(mObjectId) shouldBe false
+    }
+
+    @Test
+    fun `return false on lockObject if errors occur`() {
+        every { dbConnection.getPathTo(mObjectId) }.returns(path)
+        every { dbConnection.fullObject(path) }.returns(fullMObject)
+        every { dbConnection.wangle(fullMObject) }.returns(wangleLocation)
+        var slot = slot<MutableList<String>>()
+        every { dbConnection.callMassiveMethod(path, wangleLocation, any(), any(), capture(slot)) }.answers {
+            slot.captured.add("Error")
+            0
+        }
+
+        LockController(dbConnection, subscription).lockObject(mObjectId) shouldBe false
     }
 }
