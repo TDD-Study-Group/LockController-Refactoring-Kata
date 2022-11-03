@@ -1,13 +1,12 @@
-class LockController(connection: IMassiveDbConnection) {
+class LockController(connection: IMassiveDbConnection,
+                     private val _subscription: Subscription = Subscription(connection.session)) {
     private val _connection: IMassiveDbConnection
-    private val _subscription: Subscription
     private val _lockedItems: MutableMap<String, MutableList<IMassiveVariant>> = mutableMapOf()
 
     init {
         _connection = connection
 
         // register a listener (Subscription) for changes in the Massive Database
-        _subscription = Subscription(_connection.session)
         _subscription.publishingEnabled = true
         _subscription.publishingInterval = 500
         _subscription.registerCallback(::subscriptionDataChange)

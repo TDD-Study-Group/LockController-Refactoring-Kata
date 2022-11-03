@@ -1,4 +1,3 @@
-import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -48,15 +47,22 @@ class LockControllerShould {
         // TODO: finish writing this test
         val m = MassiveObject("Id1");
 
-        every { dbConnection.session }.returns(mockk())
+        val path = mockk<MassiveLocation>()
+        every { dbConnection.getPathTo("Id1") }.returns(path)
 
-        val controller = LockController(dbConnection);
+        val fullMObject = mockk<IMassiveObject>()
+        every { dbConnection.fullObject(path) }.returns(fullMObject)
 
-        verify { dbConnection.session }
-//
-//        controller.lockObject(m.id);
-//
-//        verify { dbConnection.getPathTo("Id1") }
+        val wangleLocation = mockk<MassiveLocation>()
+        every { dbConnection.wangle(fullMObject) }.returns(wangleLocation)
+
+        every { dbConnection.callMassiveMethod(path, wangleLocation, any(), any(), any()) }.returns(0)
+
+        val subscription = mockk<Subscription>(relaxed = true)
+        val controller = LockController(dbConnection, subscription);
+
+        controller.lockObject(m.id);
+        verify { dbConnection.getPathTo("Id1") }
 
 //        controller.unlockObject(m.id);
 //        controller.dispose();

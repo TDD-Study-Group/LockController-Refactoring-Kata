@@ -5,7 +5,7 @@ class Subscription(private val connectionSession: IMassiveSession) {
     var publishingEnabled: Boolean = false
     var publishingInterval: Int = 0
 
-    fun create() {
+    fun create(): Unit {
         TODO("can't be called from a unit test")
     }
 
