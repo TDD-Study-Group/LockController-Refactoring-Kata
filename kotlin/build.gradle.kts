@@ -13,6 +13,7 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testImplementation("org.junit.jupiter:junit-jupiter-engine")
     testImplementation("io.kotest:kotest-assertions-core:5.5.3")
+    testImplementation("io.mockk:mockk-jvm:1.13.2")
 }
 
 tasks{
